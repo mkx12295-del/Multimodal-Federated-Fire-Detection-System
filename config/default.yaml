@@ -1,0 +1,42 @@
+# Fire node runtime configuration. Override any value with --config <file>.
+
+models:
+  sensor: models/sensor_xgb.json
+  vision: models/vision_yolo11n.pt
+
+vision:
+  enabled: true
+  camera_index: 0
+  width: 320
+  height: 240
+  imgsz: 320
+  conf_threshold: 0.35
+  # Only these classes count as hazard evidence; "other" is ignored.
+  hazard_classes: [fire, smoke]
+
+sensor:
+  # Readings used to learn the clean-air gas-resistance baseline at startup.
+  burn_in_samples: 30
+  # Used when no BME680 is attached: replay a recorded CSV instead.
+  replay_csv: smoke_detection_iot.csv
+
+fusion:
+  sensor_weight: 0.5
+  vision_weight: 0.5
+  sensor_threshold: 0.5
+  vision_threshold: 0.35
+  ema_alpha: 0.4          # temporal smoothing of the fused score
+  warning_on: 0.35
+  alarm_on: 0.6
+  clear_below: 0.25
+  alarm_frames: 3         # consecutive frames above alarm_on before ALARM
+  confirm_frames: 2       # consecutive frames with both modalities agreeing before ALARM
+  clear_frames: 5         # consecutive frames below clear_below before returning to NORMAL
+
+hardware:
+  buzzer_pin: 27          # physical pin 13
+  relay_pin: 17           # physical pin 11
+
+loop:
+  interval_s: 1.0
+  log_csv: logs/events.csv
