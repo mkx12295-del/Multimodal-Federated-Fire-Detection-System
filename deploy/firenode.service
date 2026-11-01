@@ -1,0 +1,15 @@
+[Unit]
+Description=Fire detection node (sensor + vision fusion)
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/fire_project
+ExecStart=/home/pi/fire_project/venv/bin/python inference.py
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

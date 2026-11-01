@@ -1,0 +1,8 @@
+# Raspberry Pi 5 runtime (gpiozero ships with Raspberry Pi OS)
+numpy
+pandas
+xgboost
+ultralytics
+opencv-python-headless
+pyyaml
+adafruit-circuitpython-bme680
