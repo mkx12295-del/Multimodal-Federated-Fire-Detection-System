@@ -1,15 +1,20 @@
-# Model weights: only the deployable models in models/ are tracked
+# Dataset (download with scripts/download_dataset.py)
+train/
+valid/
+test/
+*.cache
+
+# Model weights (train with train.py, or download from the GitHub release)
 *.pt
 *.pth
 *.onnx
 *.tflite
 *.h5
-!models/*.pt
 
 # Generated
 splits/
 logs/
-runs/detect/fire_detection_v2*/
+runs/
 results/vision_*_scores.csv
 results/*.log
 

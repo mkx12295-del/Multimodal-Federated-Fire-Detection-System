@@ -25,6 +25,33 @@
     "f1": 0.9985680812288467,
     "roc_auc": 1.0
   },
+  "leave_one_session_out": {
+    "session_0": {
+      "rows": 24994,
+      "fire_rate": 0.8728494838761303,
+      "accuracy": 0.5776586380731376
+    },
+    "session_1": {
+      "rows": 24994,
+      "fire_rate": 0.8728494838761303,
+      "accuracy": 0.8796111066655997
+    },
+    "session_2": {
+      "rows": 1154,
+      "fire_rate": 0.9714038128249567,
+      "accuracy": 0.02859618717504333
+    },
+    "session_3": {
+      "rows": 5744,
+      "fire_rate": 0.00034818941504178273,
+      "accuracy": 0.6542479108635098
+    },
+    "session_4": {
+      "rows": 5744,
+      "fire_rate": 0.00034818941504178273,
+      "accuracy": 0.4216573816155989
+    }
+  },
   "feature_importance": {
     "Temperature": 0.12664002180099487,
     "Humidity": 0.04316665232181549,
