@@ -38,10 +38,12 @@ class BME680Source:
 class ReplaySource:
     """Replays recorded readings from the IoT dataset, looping at the end."""
 
-    def __init__(self, csv_path, session=None):
+    def __init__(self, csv_path, session=None, start_fraction=0.0):
         df = load_iot_csv(csv_path)
         if session is not None:
             df = df[df["session"] == session]
+        # e.g. 0.8 replays only the latest 20%, the part held out from training
+        df = df.iloc[int(len(df) * start_fraction):]
         self._rows = itertools.cycle(df[FEATURES].to_dict("records"))
 
     def read(self):
@@ -55,4 +57,6 @@ def open_source(cfg, force_replay=False):
         except (ImportError, NotImplementedError, OSError, ValueError, RuntimeError) as e:
             print(f"BME680 unavailable ({e.__class__.__name__}); replaying recorded data.")
     from .config import resolve
-    return ReplaySource(resolve(cfg["sensor"]["replay_csv"]))
+    s = cfg["sensor"]
+    return ReplaySource(resolve(s["replay_csv"]), s.get("replay_session"),
+                        s.get("replay_start_fraction", 0.0))

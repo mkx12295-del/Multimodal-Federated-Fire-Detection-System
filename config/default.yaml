@@ -1,7 +1,12 @@
 # Fire node runtime configuration. Override any value with --config <file>.
 
+node:
+  id: node                # name used in alerts
+
 models:
+  sensor_type: xgboost    # xgboost | fl_mlp (federated model from federated/client.py)
   sensor: models/sensor_xgb.json
+  sensor_fl: models/fl_node.npz
   vision: models/vision_yolo11n.pt
 
 vision:
@@ -19,6 +24,8 @@ sensor:
   burn_in_samples: 30
   # Used when no BME680 is attached: replay a recorded CSV instead.
   replay_csv: smoke_detection_iot.csv
+  replay_session: null    # replay one recording session only
+  replay_start_fraction: 0.0
 
 fusion:
   sensor_weight: 0.5
@@ -41,7 +48,7 @@ reasoning:
   threads: 4
   window: 30              # readings summarized for each request
   cooldown_s: 30          # minimum gap between requests
-  escalate: true          # a confident "fire" verdict may promote WARNING to ALARM
+  escalate: false         # off: the 0.5B model failed validation (see README); explanations only
   escalate_confidence: 0.8
   log_jsonl: logs/incidents.jsonl
 

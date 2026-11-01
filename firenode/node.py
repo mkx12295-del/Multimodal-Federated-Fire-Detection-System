@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from .actuators import Actuators
 from .config import load_config, resolve
 from .fusion import FusionConfig, FusionEngine, State
-from .models import SensorModel, VisionModel
+from .models import VisionModel, load_sensor_model
 from .sensors import open_source
 
 
@@ -97,7 +97,7 @@ class ReasoningWorker:
 
 
 def run(cfg, replay=False, no_camera=False, max_steps=None, status=None):
-    sensor_model = SensorModel(resolve(cfg["models"]["sensor"]))
+    sensor_model = load_sensor_model(cfg)
     source = open_source(cfg, force_replay=replay)
 
     vision = camera = None
@@ -125,6 +125,10 @@ def run(cfg, replay=False, no_camera=False, max_steps=None, status=None):
         print(f"Reasoning backend: {reasoner.name}")
         worker = ReasoningWorker(reasoner, rcfg.get("cooldown_s", 30), rcfg["log_jsonl"])
     window = deque(maxlen=rcfg.get("window", 30))
+    from .alerts import Alerter
+
+    alerter = Alerter.from_env(cfg.get("node", {}).get("id", "node"))
+    last_verdict = None
     print("\n--- Fire node active (Ctrl+C to stop) ---\n")
 
     step = 0
@@ -157,11 +161,10 @@ def run(cfg, replay=False, no_camera=False, max_steps=None, status=None):
                             and v.confidence >= rcfg.get("escalate_confidence", 0.8)
                             and engine.escalate()):
                         print("  [reasoning] escalated WARNING -> ALARM")
+                    last_verdict = {"verdict": v.verdict, "confidence": v.confidence,
+                                    "explanation": v.explanation, "backend": v.backend}
                     if status is not None:
-                        status.update(last_verdict={"verdict": v.verdict,
-                                                    "confidence": v.confidence,
-                                                    "explanation": v.explanation,
-                                                    "backend": v.backend})
+                        status.update(last_verdict=last_verdict)
 
             actuators.apply(engine.state)
             row = {"time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -171,6 +174,8 @@ def run(cfg, replay=False, no_camera=False, max_steps=None, status=None):
                    "fused": round(d.fused, 4), "smoothed": round(d.smoothed, 4),
                    "state": engine.state.name}
             log.write(row)
+            if alerter is not None:
+                alerter.update(engine.state, row, last_verdict)
             if status is not None:
                 status.push(row)
 

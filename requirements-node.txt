@@ -1,0 +1,6 @@
+# Minimal runtime for the sensor-only node and federated learning (used by the Docker image)
+numpy
+pandas
+scikit-learn
+xgboost
+pyyaml

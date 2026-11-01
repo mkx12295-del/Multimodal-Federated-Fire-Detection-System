@@ -19,6 +19,35 @@ class SensorModel:
         return self.model.predict_proba(reading[FEATURES])[:, 1]
 
 
+class FedSensorModel:
+    """The federated MLP written by federated/client.py (weights + global mean/std)."""
+
+    def __init__(self, path):
+        from federated.model import predict_proba
+
+        d = np.load(str(path))
+        self._predict = predict_proba
+        self.mean, self.std = d["mean"], d["std"]
+        self.params = {k: d[k] for k in ("W1", "b1", "W2", "b2")}
+
+    def predict_proba(self, reading):
+        if isinstance(reading, dict):
+            reading = pd.DataFrame([reading])
+        X = reading[FEATURES].to_numpy(dtype=np.float64)
+        return self._predict(self.params, (X - self.mean) / self.std)
+
+
+def load_sensor_model(cfg):
+    from .config import resolve
+
+    kind = cfg["models"].get("sensor_type", "xgboost")
+    if kind == "fl_mlp":
+        return FedSensorModel(resolve(cfg["models"]["sensor_fl"]))
+    if kind == "xgboost":
+        return SensorModel(resolve(cfg["models"]["sensor"]))
+    raise ValueError(f"unknown sensor_type {kind!r}")
+
+
 class VisionModel:
     def __init__(self, path, hazard_classes=("fire", "smoke"), imgsz=320, conf=0.25):
         from ultralytics import YOLO
