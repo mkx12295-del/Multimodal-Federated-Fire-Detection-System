@@ -29,6 +29,26 @@ Every number below is produced by a script in this repo, on held-out data.
 Per class mAP50 (v2): fire 0.62, smoke 0.43, other 0.23. Inference about 1.2 ms
 per image on an RTX 5060 laptop GPU. Raspberry Pi latency has not been measured yet.
 
+### Fusion (replay benchmark, test split)
+
+No public dataset pairs camera frames and gas readings from the same fire,
+so episodes (60 frames each, 200 per type) combine held-out sensor windows
+with held-out test images. Fusion thresholds were tuned on the validation
+split (`config/tuned_fusion.yaml`), then evaluated once on test.
+
+Cells: share of episodes that reached ALARM, with the mean number of times the
+alarm switched on or off per episode in brackets.
+
+| Policy | Fire, both see it | Fire, camera blind | Fire, no gas yet | No fire (false alarm) |
+|---|---|---|---|---|
+| Sensor only | 1.00 (0.0) | 1.00 (0.0) | 0.03 (0.0) | 0.02 (0.0) |
+| Vision only | 1.00 (21.6) | 0.96 (5.5) | 1.00 (21.4) | 0.94 (5.3) |
+| v1 AND rule | 1.00 (21.6) | 0.96 (5.5) | 0.03 (0.3) | 0.01 (0.0) |
+| **v2 fusion** | **1.00 (1.0)** | **1.00 (1.0)** | **0.92 (0.9)** | **0.01 (0.0)** |
+
+v2 catches 92% of fires visible only to the camera (v1: 3%) at the same 1%
+false-alarm rate, and does not flicker the alarm on and off.
+
 ### Sensor model (XGBoost)
 
 | Split | Accuracy |
