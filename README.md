@@ -1,189 +1,134 @@
+# Multimodal Federated Fire Detection Node
 
-# 🔥 Federated Learning Fire Node
+Edge fire detection for a Raspberry Pi 5 that fuses a gas/temperature sensor
+(BME680 + XGBoost) with a camera (YOLO11n). The sensor models are trained
+across sites with federated learning, and a small local LLM explains alerts.
+Every number below is produced by a script in this repo, on held-out data.
 
-### Edge-AI Powered Hazard Detection with Local LLM Reasoning
+## What it does
 
-## 📖 Project Overview
+| Part | Implementation |
+|---|---|
+| Sensor pathway | XGBoost on temperature, humidity, TVOC, pressure (`models/sensor_xgb.json`) |
+| Vision pathway | YOLO11n fire/smoke detector, 416 px (`scripts/train_vision.py`) |
+| Fusion | Weighted late fusion, EMA smoothing, NORMAL→WARNING→ALARM state machine with hysteresis (`firenode/fusion.py`) |
+| Federated learning | NumPy MLP, FedAvg / FedProx / clipped equal-weight aggregation / DP-FedAvg; HTTP aggregator and node client (`federated/`) |
+| Local LLM reasoning | Qwen2.5-0.5B-Instruct (GGUF, Q4_K_M) explains WARNING/ALARM events; may only escalate, never cancel (`firenode/reasoning.py`) |
+| Dashboard | Live status page served by the node (`--dashboard PORT`) |
+| Hardware | Buzzer GPIO27 (pin 13), relay GPIO17 (pin 11), BME680 on I2C |
 
-The **Federated Learning Fire Node** is an intelligent edge-based fire detection system designed to operate independently on a **Raspberry Pi 5**.
+## Results
 
-This project combines:
+### Vision (YOLO11n, held-out test split, 893 images)
 
-* 🧠 **Local LLM reasoning**
-* 👁️ **YOLO-based computer vision**
-* 🌡️ **BME680 environmental sensing**
-* ⚡ **Federated learning principles**
+| Version | Training | Evaluated on | mAP50 | mAP50-95 |
+|---|---|---|---|---|
+| v1 | 5 epochs, CPU, 320 px | its own training images | 0.373 | 0.182 |
+| **v2** | 50 epochs, GPU, 416 px | **held-out test split** | **0.427** | **0.208** |
 
-Unlike traditional cloud-based systems, this node performs **on-device inference and learning**, ensuring:
+Per class mAP50 (v2): fire 0.62, smoke 0.43, other 0.23. Inference about 1.2 ms
+per image on an RTX 5060 laptop GPU. Raspberry Pi latency has not been measured yet.
 
-* 🔒 Data privacy
-* ⚡ Low latency
-* 🌐 Decentralized intelligence
+### Sensor model (XGBoost)
 
-The system is capable of **multi-modal sensor fusion**, allowing it to distinguish between:
+| Split | Accuracy |
+|---|---|
+| Random row split (v1 protocol) | 99.5% |
+| Chronological split per session | 99.8% |
+| **Leave one session out (new site)** | **3% – 88%** depending on session |
 
-* Harmless anomalies (e.g., steam, cooking smoke)
-* Real fire hazards
+The model is near-perfect on the sites it trained on but does not transfer to
+an unseen site. This motivates training across sites with federated learning.
 
----
+### Federated learning (5 non-IID nodes = 5 recording sessions)
 
-## 🚀 Key Features
+| Method | Pooled test accuracy |
+|---|---|
+| Local only (each node alone, evaluated on all nodes) | 42.8% mean |
+| FedAvg | 93.5% |
+| FedProx (mu = 0.1) | 93.3% |
+| Centralized (pooled raw data, no privacy) | 95.5% |
+| **Clipped equal-weight aggregation** | **98.2% ± 1.5** (3 seeds) |
+| Same, over HTTP with 5 separate processes | 98.8% |
 
-* 🔥 **Real-time fire detection**
-* 🧠 **Local LLM-based reasoning engine**
-* 📷 **YOLO vision processing**
-* 🌡️ **Gas + temperature + humidity sensing**
-* 🔄 **Federated learning-ready architecture**
-* 🔕 **False positive reduction using contextual reasoning**
-* ⚡ **Edge deployment (no cloud dependency)**
+DP-FedAvg (clip 1.0, delta 1e-3, 200 rounds, 3 seeds):
 
----
+| Noise multiplier | epsilon | Accuracy |
+|---|---|---|
+| 0.1 | 10677 | 97.2% |
+| 0.5 | 506 | 84.5% |
+| 1.0 | 153 | 70.1% |
+| 2.0 | 51 | 65.7% |
 
-## 🧠 System Architecture
+With only 5 nodes and full participation, a meaningful privacy budget costs a
+lot of accuracy. More nodes per round would be needed for strong guarantees.
 
-The system integrates three main AI components:
+![FL convergence](results/federated_convergence.png)
+![DP trade-off](results/dp_tradeoff.png)
 
-1. **Vision Model (YOLO)**
-   Detects smoke, flame, and visual anomalies via Pi Camera.
+### Local LLM reasoning: limitations seen so far
 
-2. **Sensor Model (XGBoost + BME680)**
-   Analyzes:
+The 0.5B model runs locally (12 s per call on desktop CPU through
+transformers). In a replay test it labeled a clean-air window "fire" with high
+confidence and invented a TVOC reading, so it is advisory only. The
+escalate-only policy keeps it from cancelling alarms. A rule-based fallback is
+used when no model is available. `scripts/eval_reasoning.py` measures verdict
+accuracy and escalation impact; its results are not yet reported here.
 
-   * Gas levels
-   * Temperature
-   * Humidity
-
-3. **Local LLM Reasoning Engine**
-   Combines outputs from both models to make **human-like decisions**.
-
----
-
-## 🔌 Circuit Diagram
-
-```mermaid
-graph TD
-    subgraph Raspberry_Pi_5
-        P13[Physical Pin 13 / GPIO 27]
-        P11[Physical Pin 11 / GPIO 17]
-        P3[Physical Pin 3 / I2C SDA]
-        P5[Physical Pin 5 / I2C SCL]
-        P2[Physical Pin 2 / 5V]
-        P6[Physical Pin 6 / GND]
-    end
-
-    P13 -->|PWM Signal| Buzzer[Passive Buzzer]
-    P11 -->|Trigger| Relay[5V Relay Module]
-    P3 --- BME680[BME680 Sensor]
-    P5 --- BME680
-    P2 --- BME680
-    P6 --- BME680
-    P6 --- Buzzer
-    P6 --- Relay
-    
-    Relay -->|AC/DC Switch| Suppression[Water Pump / Siren]
-```
-
----
-
-## 🛠️ Hardware Stack
-
-| Component          | Connection       | Role                         |
-| ------------------ | ---------------- | ---------------------------- |
-| **BME680**         | I2C (Pins 3, 5)  | Gas, Temp & Humidity sensing |
-| **Passive Buzzer** | GPIO 27 (Pin 13) | Audio alert (PWM)            |
-| **Relay Module**   | GPIO 17 (Pin 11) | Controls suppression system  |
-| **Pi Camera V3**   | CSI Port         | Vision input for YOLO        |
-
----
-
-## ⚙️ Software Setup & Deployment
-
-### 1️⃣ Clone the Repository
+## Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Fire-Node-Project.git
-cd Fire-Node-Project
-```
-
-### 2️⃣ Setup Environment
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
 pip install -r requirements.txt
+python scripts/download_dataset.py      # needs ROBOFLOW_API_KEY (dataset: CC BY 4.0)
+python train.py                         # splits, sensor, vision, FL, fusion stages
+pytest -q                               # 30 tests, no hardware needed
 ```
 
-### 3️⃣ Run the Node
+Run the node without hardware (replays recorded sensor data):
 
 ```bash
-python3 inference.py
+python inference.py --replay --no-camera --dashboard 8000
 ```
 
----
+Optional LLM model (about 470 MB):
 
-## 📂 Project Structure
-
-```
-/home/pi/fire_project/
-│
-├── inference.py          # Core AI logic (LLM + fusion)
-├── requirements.txt      # Dependencies
-├── dataset/              # Logs and training data
-│
-├── venv/                 # Virtual environment
-│
-└── models/               # ⚠️ Manually added
-    ├── yolo_model.pt     # YOLO weights
-    └── llm_model.gguf    # Quantized LLM
+```bash
+python -c "from huggingface_hub import hf_hub_download; hf_hub_download('Qwen/Qwen2.5-0.5B-Instruct-GGUF','qwen2.5-0.5b-instruct-q4_k_m.gguf',local_dir='models')"
 ```
 
----
+Networked federated training (one aggregator, one process per node):
 
-## ⚠️ Important Note
+```bash
+python scripts/fl_network_demo.py --clip 1.0
+```
 
-Due to GitHub’s **100MB file limit**, AI model weights are NOT included.
+Deploy to a Raspberry Pi 5 (SSH key auth, installs a systemd service):
 
-You must manually copy:
+```bash
+python deploy.py --host <pi-address> --user pi
+```
 
-* `.pt` (YOLO model)
-* `.gguf` (LLM model)
+## Project structure
 
-### Transfer Options:
+```
+firenode/     node runtime: fusion, sensors, models, actuators, reasoning, dashboard
+federated/    FL model, aggregation (FedAvg/FedProx/DP), HTTP server and client
+scripts/      dataset, training, FL experiments, benchmarks
+config/       default.yaml (+ tuned_fusion.yaml from the benchmark)
+results/      metrics JSON and plots produced by the scripts
+tests/        pytest suite (runs in CI)
+deploy/       systemd unit
+```
 
-* USB drive
-* SCP / SFTP
-* External storage
----
+## Limitations
 
-## 🔐 Privacy & Federated Learning
+- Hardware code (BME680, GPIO, camera) has not been re-tested on a Pi after the v2 rewrite.
+- No dataset pairs camera frames with gas readings from the same fire; fusion is
+  evaluated on replay episodes assembled from held-out sensor windows and test images.
+- Federated "nodes" are recording sessions of one public dataset, not separate deployments.
+- The BME680 gives gas resistance, not TVOC; the conversion is approximate.
 
-This project follows **Federated Learning principles**:
+## Data
 
-* Data remains **on-device**
-* Only model updates (optional) are shared
-* No raw sensor data leaves the node
-
----
-
-## 🔮 Future Enhancements
-
-* 🌐 Multi-node federated network
-* 📡 Edge-to-edge communication
-* 📱 Mobile alert system
-* ☁️ Optional cloud dashboard
-* 🎯 Improved anomaly classification
-
----
-
-## 🤝 Contributions
-
-Contributions are welcome!
-Feel free to fork, improve, and submit pull requests.
-
----
-
-If you want, I can also:
-
-* Make this more **“college project report friendly”**
-* Add **architecture diagrams + flowcharts**
-* Or tailor it for **GitHub portfolio (to impress recruiters)** 🚀
+- Images: [Roboflow Fire Detection v1](https://universe.roboflow.com/fire-dataset-tp9jt/fire-detection-sejra/dataset/1), CC BY 4.0, 8,939 images.
+- Sensor readings: `smoke_detection_iot.csv`, public smoke detection IoT dataset (62,630 rows).

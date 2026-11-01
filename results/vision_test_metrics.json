@@ -1,0 +1,13 @@
+{
+  "weights": "runs/detect/fire_detection_v2/weights/best.pt",
+  "split": "test",
+  "precision": 0.49966035074228604,
+  "recall": 0.42598884156689504,
+  "mAP50": 0.42704375527802796,
+  "mAP50_95": 0.20849121279646102,
+  "per_class_mAP50": {
+    "fire": 0.6200799577258358,
+    "other": 0.23479015619804083,
+    "smoke": 0.4262611519102074
+  }
+}
