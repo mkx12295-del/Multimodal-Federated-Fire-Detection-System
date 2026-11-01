@@ -26,3 +26,7 @@ venv/
 __pycache__/
 .pytest_cache/
 .DS_Store
+
+# Generated exports and download caches
+models/edge/
+models/.cache/

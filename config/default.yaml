@@ -44,6 +44,7 @@ reasoning:
   enabled: true
   backend: auto           # llama_cpp | transformers | ollama | rules | auto
   model_path: models/qwen2.5-0.5b-instruct-q4_k_m.gguf
+  prompt: zero_shot       # zero_shot | few_shot
   ollama_model: qwen2.5:0.5b
   threads: 4
   window: 30              # readings summarized for each request

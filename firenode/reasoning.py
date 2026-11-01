@@ -154,13 +154,50 @@ class RuleReasoner:
         return Verdict(*v, backend=self.name, latency_s=time.perf_counter() - t)
 
 
+# Hand-written worked examples (not taken from the evaluation data), one per
+# situation the guidance describes, so a small model sees both answers.
+FEW_SHOT = [
+    ("Last 30 readings (1 per second):\nTemperature: 27.4 C (change +4.1 C)\n"
+     "Humidity: 41.0 % (change -6.0 %)\nTVOC: 1850.0 ppb now, max 1850.0 ppb (change +1790.0 ppb)\n"
+     "Sensor model fire probability: now 0.98, mean 0.91\nCamera: not available.\n"
+     "Fusion engine state: WARNING",
+     {"verdict": "fire", "confidence": 0.9,
+      "explanation": "TVOC rose by about 1800 ppb with rising temperature, typical of combustion.",
+      "action": "Raise the alarm and check the area."}),
+    ("Last 30 readings (1 per second):\nTemperature: 23.1 C (change +0.6 C)\n"
+     "Humidity: 88.0 % (change +31.0 %)\nTVOC: 12.0 ppb now, max 15.0 ppb (change +3.0 ppb)\n"
+     "Sensor model fire probability: now 0.12, mean 0.08\nCamera: not available.\n"
+     "Fusion engine state: WARNING",
+     {"verdict": "no_fire", "confidence": 0.85,
+      "explanation": "Humidity jumped while TVOC stayed flat, which points to steam, not smoke.",
+      "action": "No action; keep monitoring."}),
+    ("Last 30 readings (1 per second):\nTemperature: 21.0 C (change +0.0 C)\n"
+     "Humidity: 52.0 % (change -0.2 %)\nTVOC: 0.0 ppb now, max 0.0 ppb (change +0.0 ppb)\n"
+     "Sensor model fire probability: now 0.03, mean 0.04\n"
+     "Camera: max fire/smoke confidence 0.41, detections in 7% of frames.\n"
+     "Fusion engine state: WARNING",
+     {"verdict": "no_fire", "confidence": 0.8,
+      "explanation": "Gas and temperature are flat and camera detections are rare and weak; "
+                     "likely a false positive.",
+      "action": "Keep monitoring the camera view."}),
+]
+
+
 class _ChatReasoner:
     max_tokens = 160
+    few_shot = False
+
+    def messages(self, ctx):
+        msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
+        if self.few_shot:
+            for user, answer in FEW_SHOT:
+                msgs += [{"role": "user", "content": user},
+                         {"role": "assistant", "content": json.dumps(answer)}]
+        return msgs + [{"role": "user", "content": ctx.to_prompt()}]
 
     def reason(self, ctx):
         t = time.perf_counter()
-        text = self._chat([{"role": "system", "content": SYSTEM_PROMPT},
-                           {"role": "user", "content": ctx.to_prompt()}])
+        text = self._chat(self.messages(ctx))
         return parse_verdict(text, self.name, time.perf_counter() - t)
 
 
@@ -222,17 +259,22 @@ def load_reasoner(cfg):
 
     backend = cfg.get("backend", "auto")
     model_path = resolve(cfg.get("model_path", ""))
+    few_shot = cfg.get("prompt", "zero_shot") == "few_shot"
     order = ["llama_cpp", "transformers", "ollama", "rules"] if backend == "auto" else [backend]
     for name in order:
         try:
-            if name == "llama_cpp":
-                return LlamaCppReasoner(model_path, cfg.get("threads", 4))
-            if name == "transformers":
-                return TransformersReasoner(model_path)
-            if name == "ollama":
-                return OllamaReasoner(cfg.get("ollama_model", "qwen2.5:0.5b"))
             if name == "rules":
                 return RuleReasoner()
+            if name == "llama_cpp":
+                r = LlamaCppReasoner(model_path, cfg.get("threads", 4))
+            elif name == "transformers":
+                r = TransformersReasoner(model_path)
+            elif name == "ollama":
+                r = OllamaReasoner(cfg.get("ollama_model", "qwen2.5:0.5b"))
+            else:
+                continue
+            r.few_shot = few_shot
+            return r
         except Exception as e:  # missing package, model file or server
             print(f"Reasoner '{name}' unavailable: {e.__class__.__name__}: {str(e)[:100]}")
     print("Falling back to rule-based reasoning.")

@@ -55,7 +55,7 @@ def run_escalation(ep, cfg, reasoner, threshold):
     return False, asked
 
 
-def evaluate(reasoner, episodes, cfg, threshold):
+def evaluate(reasoner, episodes, cfg, threshold, escalation=True):
     out = {"verdict_accuracy": {}, "alarm_rate_with_reasoner": {}, "parse_rate": None,
            "latency_s": None}
     lat, parsed = [], []
@@ -68,8 +68,9 @@ def evaluate(reasoner, episodes, cfg, threshold):
             lat.append(v.latency_s)
             parsed.append(v.parsed)
         out["verdict_accuracy"][etype] = round(float(np.mean(correct)), 3)
-        alarms = [run_escalation(ep, cfg, reasoner, threshold)[0] for ep in eps]
-        out["alarm_rate_with_reasoner"][etype] = round(float(np.mean(alarms)), 3)
+        if escalation:
+            alarms = [run_escalation(ep, cfg, reasoner, threshold)[0] for ep in eps]
+            out["alarm_rate_with_reasoner"][etype] = round(float(np.mean(alarms)), 3)
     out["verdict_accuracy"]["overall"] = round(float(np.mean(list(out["verdict_accuracy"].values()))), 3)
     out["parse_rate"] = round(float(np.mean(parsed)), 3)
     out["latency_s"] = {"median": round(float(np.median(lat)), 3),
@@ -77,18 +78,29 @@ def evaluate(reasoner, episodes, cfg, threshold):
     return out
 
 
+MODELS = {"0.5b": "models/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+          "1.5b": "models/qwen2.5-1.5b-instruct-q4_k_m.gguf"}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--episodes", type=int, default=25, help="per episode type")
     ap.add_argument("--backend", default="auto")
+    ap.add_argument("--split", default="test", choices=["val", "test"])
+    ap.add_argument("--configs", default="0.5b:zero_shot",
+                    help="comma list of <model>:<prompt>, model in %s" % list(MODELS))
+    ap.add_argument("--no-escalation", action="store_true",
+                    help="only measure verdicts (faster; used for model selection)")
+    ap.add_argument("--out", help="output JSON (default results/reasoning_eval_<split>.json)")
     ap.add_argument("--seed", type=int, default=1)
     args = ap.parse_args()
 
     cfg = load_config()
     rng = np.random.default_rng(args.seed)
     sensor_model = SensorModel(resolve(cfg["models"]["sensor"]))
-    episodes, _ = build_episodes("test", cfg, sensor_model, args.episodes, rng)
+    episodes, _ = build_episodes(args.split, cfg, sensor_model, args.episodes, rng)
     threshold = cfg["reasoning"]["escalate_confidence"]
+    escalation = not args.no_escalation
 
     baseline = {}
     for etype, eps in episodes.items():
@@ -98,18 +110,24 @@ def main():
             alarms.append(any(e.update(s, v).state == State.ALARM for s, v in zip(probs, confs)))
         baseline[etype] = round(float(np.mean(alarms)), 3)
 
-    t = time.time()
-    llm = load_reasoner(dict(cfg["reasoning"], backend=args.backend))
-    load_s = round(time.time() - t, 1)
-    results = {
-        "episodes_per_type": args.episodes,
-        "escalate_confidence": threshold,
-        "fusion_only_alarm_rate": baseline,
-        "rules": evaluate(RuleReasoner(), episodes, cfg, threshold),
-        llm.name: {"model": Path(cfg["reasoning"]["model_path"]).name, "load_s": load_s,
-                   **evaluate(llm, episodes, cfg, threshold)},
-    }
-    (ROOT / "results" / "reasoning_eval.json").write_text(json.dumps(results, indent=2))
+    results = {"split": args.split, "episodes_per_type": args.episodes,
+               "escalate_confidence": threshold, "fusion_only_alarm_rate": baseline,
+               "rules": evaluate(RuleReasoner(), episodes, cfg, threshold, escalation)}
+    for spec in args.configs.split(","):
+        size, prompt = spec.split(":")
+        t = time.time()
+        llm = load_reasoner(dict(cfg["reasoning"], backend=args.backend,
+                                 model_path=MODELS[size], prompt=prompt))
+        load_s = round(time.time() - t, 1)
+        results[f"qwen2.5-{size}_{prompt}"] = {
+            "backend": llm.name, "model": Path(MODELS[size]).name, "prompt": prompt,
+            "load_s": load_s, **evaluate(llm, episodes, cfg, threshold, escalation)}
+        print(spec, json.dumps(results[f"qwen2.5-{size}_{prompt}"]["verdict_accuracy"]),
+              flush=True)
+        del llm
+
+    out = Path(args.out) if args.out else ROOT / "results" / f"reasoning_eval_{args.split}.json"
+    out.write_text(json.dumps(results, indent=2))
     print(json.dumps(results, indent=2))
 
 

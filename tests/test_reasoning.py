@@ -82,3 +82,17 @@ def test_dashboard_serves_status():
         assert b"Fire Node" in urllib.request.urlopen(url + "/").read()
     finally:
         server.shutdown()
+
+
+def test_few_shot_examples_precede_the_question():
+    from firenode.reasoning import FEW_SHOT, _ChatReasoner
+
+    r = _ChatReasoner()
+    ctx = window()
+    assert [m["role"] for m in r.messages(ctx)] == ["system", "user"]
+    r.few_shot = True
+    msgs = r.messages(ctx)
+    assert len(msgs) == 2 + 2 * len(FEW_SHOT)
+    assert msgs[-1]["content"] == ctx.to_prompt()
+    assert {json.loads(m["content"])["verdict"] for m in msgs if m["role"] == "assistant"} \
+        == {"fire", "no_fire"}
