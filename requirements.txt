@@ -9,3 +9,9 @@ matplotlib>=3.7
 pyyaml>=6.0
 paramiko>=3.0
 pytest>=7.0
+
+# Local LLM reasoning on desktop: loads the same GGUF file the Pi uses.
+# (On Linux/macOS, `pip install llama-cpp-python` is the lighter alternative.)
+transformers>=4.45
+accelerate>=0.30
+gguf>=0.10

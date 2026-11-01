@@ -1,12 +1,16 @@
 """Main inference loop for the fire node."""
 import argparse
 import csv
+import json
+import queue
+import threading
 import time
+from collections import deque
 from datetime import datetime, timezone
 
 from .actuators import Actuators
 from .config import load_config, resolve
-from .fusion import FusionConfig, FusionEngine
+from .fusion import FusionConfig, FusionEngine, State
 from .models import SensorModel, VisionModel
 from .sensors import open_source
 
@@ -50,7 +54,49 @@ class EventLog:
         self.f.close()
 
 
-def run(cfg, replay=False, no_camera=False, max_steps=None):
+class ReasoningWorker:
+    """Runs the reasoner off the main loop so a slow LLM never delays sensing."""
+
+    def __init__(self, reasoner, cooldown_s, log_path):
+        self.reasoner, self.cooldown_s = reasoner, cooldown_s
+        self.log_path = resolve(log_path)
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._jobs, self._done = queue.Queue(maxsize=1), queue.Queue()
+        self._busy = threading.Event()
+        self._last = -float("inf")
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    def _loop(self):
+        from .reasoning import verdict_record
+
+        while True:
+            ctx = self._jobs.get()
+            try:
+                v = self.reasoner.reason(ctx)
+                with open(self.log_path, "a") as f:
+                    f.write(json.dumps({"time": datetime.now(timezone.utc).isoformat(
+                        timespec="seconds"), **verdict_record(ctx, v)}) + "\n")
+                self._done.put(v)
+            finally:
+                self._busy.clear()
+
+    def submit(self, ctx):
+        now = time.monotonic()
+        if self._busy.is_set() or now - self._last < self.cooldown_s:
+            return False
+        self._busy.set()
+        self._last = now
+        self._jobs.put(ctx)
+        return True
+
+    def results(self):
+        out = []
+        while not self._done.empty():
+            out.append(self._done.get())
+        return out
+
+
+def run(cfg, replay=False, no_camera=False, max_steps=None, status=None):
     sensor_model = SensorModel(resolve(cfg["models"]["sensor"]))
     source = open_source(cfg, force_replay=replay)
 
@@ -69,6 +115,16 @@ def run(cfg, replay=False, no_camera=False, max_steps=None):
     actuators = Actuators(cfg["hardware"]["buzzer_pin"], cfg["hardware"]["relay_pin"],
                           use_gpio=not replay)
     log = EventLog(cfg["loop"]["log_csv"])
+
+    rcfg = cfg.get("reasoning", {})
+    worker = None
+    if rcfg.get("enabled"):
+        from .reasoning import load_reasoner
+
+        reasoner = load_reasoner(rcfg)
+        print(f"Reasoning backend: {reasoner.name}")
+        worker = ReasoningWorker(reasoner, rcfg.get("cooldown_s", 30), rcfg["log_jsonl"])
+    window = deque(maxlen=rcfg.get("window", 30))
     print("\n--- Fire node active (Ctrl+C to stop) ---\n")
 
     step = 0
@@ -85,18 +141,43 @@ def run(cfg, replay=False, no_camera=False, max_steps=None):
                     vision_conf = vision.hazard_confidence(frame)
 
             d = engine.update(sensor_prob, vision_conf)
-            actuators.apply(d.state)
-            log.write({"time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       **{k: round(v, 3) for k, v in reading.items()},
-                       "sensor_prob": round(sensor_prob, 4),
-                       "vision_conf": "" if vision_conf is None else round(vision_conf, 4),
-                       "fused": round(d.fused, 4), "smoothed": round(d.smoothed, 4),
-                       "state": d.state.name})
+            window.append((reading, sensor_prob, vision_conf))
+
+            if worker is not None:
+                if d.state in (State.WARNING, State.ALARM):
+                    from .reasoning import Context
+
+                    readings, probs, confs = zip(*window)
+                    worker.submit(Context.from_window(readings, probs, confs, d.state.name,
+                                                      cfg["fusion"]["vision_threshold"]))
+                for v in worker.results():
+                    print(f"  [reasoning/{v.backend} {v.latency_s:.1f}s] {v.verdict} "
+                          f"({v.confidence:.2f}): {v.explanation}")
+                    if (rcfg.get("escalate") and v.is_fire
+                            and v.confidence >= rcfg.get("escalate_confidence", 0.8)
+                            and engine.escalate()):
+                        print("  [reasoning] escalated WARNING -> ALARM")
+                    if status is not None:
+                        status.update(last_verdict={"verdict": v.verdict,
+                                                    "confidence": v.confidence,
+                                                    "explanation": v.explanation,
+                                                    "backend": v.backend})
+
+            actuators.apply(engine.state)
+            row = {"time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                   **{k: round(v, 3) for k, v in reading.items()},
+                   "sensor_prob": round(sensor_prob, 4),
+                   "vision_conf": "" if vision_conf is None else round(vision_conf, 4),
+                   "fused": round(d.fused, 4), "smoothed": round(d.smoothed, 4),
+                   "state": engine.state.name}
+            log.write(row)
+            if status is not None:
+                status.push(row)
 
             vis = "n/a" if vision_conf is None else f"{vision_conf:.2f}"
             print(f"T={reading['Temperature']:.1f}C H={reading['Humidity']:.1f}% "
                   f"TVOC={reading['TVOC']:.0f} | sensor={sensor_prob:.2f} vision={vis} "
-                  f"| score={d.smoothed:.2f} -> {d.state.name}")
+                  f"| score={d.smoothed:.2f} -> {engine.state.name}")
 
             step += 1
             time.sleep(max(0.0, cfg["loop"]["interval_s"] - (time.monotonic() - t0)))
@@ -116,6 +197,9 @@ def main(argv=None):
     p.add_argument("--replay", action="store_true",
                    help="replay recorded sensor data instead of reading the BME680")
     p.add_argument("--no-camera", action="store_true", help="run the sensor pathway only")
+    p.add_argument("--no-llm", action="store_true", help="disable the reasoning module")
+    p.add_argument("--dashboard", type=int, metavar="PORT",
+                   help="serve a live status page on this port")
     p.add_argument("--steps", type=int, help="stop after N iterations")
     p.add_argument("--interval", type=float, help="seconds between iterations")
     args = p.parse_args(argv)
@@ -123,7 +207,16 @@ def main(argv=None):
     cfg = load_config(args.config)
     if args.interval is not None:
         cfg["loop"]["interval_s"] = args.interval
-    run(cfg, replay=args.replay, no_camera=args.no_camera, max_steps=args.steps)
+    if args.no_llm:
+        cfg.setdefault("reasoning", {})["enabled"] = False
+    status = None
+    if args.dashboard:
+        from .dashboard import Status, start_dashboard
+
+        status = Status()
+        start_dashboard(status, port=args.dashboard)
+        print(f"Dashboard on http://localhost:{args.dashboard}")
+    run(cfg, replay=args.replay, no_camera=args.no_camera, max_steps=args.steps, status=status)
     return 0
 
 

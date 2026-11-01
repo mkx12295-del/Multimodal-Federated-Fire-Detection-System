@@ -100,6 +100,14 @@ class FusionEngine:
 
         return Decision(self.state, fused, self.smoothed, sensor_alert, vision_alert)
 
+    def escalate(self):
+        """Promote WARNING to ALARM (used by the reasoning module). Never lowers the state."""
+        if self.state == State.WARNING:
+            self.state = State.ALARM
+            self._below_clear = 0
+            return True
+        return False
+
 
 class AndRuleBaseline:
     """The original v1 rule: alarm only while both modalities fire on the same frame."""

@@ -13,6 +13,7 @@ def test_node_runs_in_replay_mode(tmp_path):
     cfg = load_config()
     cfg["loop"]["interval_s"] = 0
     cfg["loop"]["log_csv"] = str(tmp_path / "events.csv")
+    cfg["reasoning"].update(backend="rules", log_jsonl=str(tmp_path / "incidents.jsonl"))
     run(cfg, replay=True, no_camera=True, max_steps=10)
 
     rows = list(csv.DictReader(open(tmp_path / "events.csv")))

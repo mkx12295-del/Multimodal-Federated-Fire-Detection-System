@@ -9,7 +9,7 @@ vision:
   camera_index: 0
   width: 320
   height: 240
-  imgsz: 320
+  imgsz: 416
   conf_threshold: 0.35
   # Only these classes count as hazard evidence; "other" is ignored.
   hazard_classes: [fire, smoke]
@@ -32,6 +32,18 @@ fusion:
   alarm_frames: 3         # consecutive frames above alarm_on before ALARM
   confirm_frames: 2       # consecutive frames with both modalities agreeing before ALARM
   clear_frames: 5         # consecutive frames below clear_below before returning to NORMAL
+
+reasoning:
+  enabled: true
+  backend: auto           # llama_cpp | transformers | ollama | rules | auto
+  model_path: models/qwen2.5-0.5b-instruct-q4_k_m.gguf
+  ollama_model: qwen2.5:0.5b
+  threads: 4
+  window: 30              # readings summarized for each request
+  cooldown_s: 30          # minimum gap between requests
+  escalate: true          # a confident "fire" verdict may promote WARNING to ALARM
+  escalate_confidence: 0.8
+  log_jsonl: logs/incidents.jsonl
 
 hardware:
   buzzer_pin: 27          # physical pin 13

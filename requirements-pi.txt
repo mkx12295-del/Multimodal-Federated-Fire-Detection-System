@@ -6,3 +6,5 @@ ultralytics
 opencv-python-headless
 pyyaml
 adafruit-circuitpython-bme680
+# Local LLM reasoning (builds llama.cpp from source on the Pi; takes a few minutes)
+llama-cpp-python
