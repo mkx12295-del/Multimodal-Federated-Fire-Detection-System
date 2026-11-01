@@ -1,0 +1,75 @@
+{
+  "clients": {
+    "node_0": {
+      "train_rows": 19996,
+      "test_rows": 4998,
+      "train_fire_rate": 0.8411
+    },
+    "node_1": {
+      "train_rows": 19996,
+      "test_rows": 4998,
+      "train_fire_rate": 0.8411
+    },
+    "node_2": {
+      "train_rows": 924,
+      "test_rows": 230,
+      "train_fire_rate": 0.9643
+    },
+    "node_3": {
+      "train_rows": 4596,
+      "test_rows": 1148,
+      "train_fire_rate": 0.0004
+    },
+    "node_4": {
+      "train_rows": 4596,
+      "test_rows": 1148,
+      "train_fire_rate": 0.0004
+    }
+  },
+  "fedavg": {
+    "node_0": 1.0,
+    "node_1": 1.0,
+    "node_2": 0.0,
+    "node_3": 0.5688,
+    "node_4": 0.9242,
+    "pooled_accuracy": 0.9352,
+    "pooled_f1": 0.961
+  },
+  "fedprox": {
+    "node_0": 1.0,
+    "node_1": 1.0,
+    "node_2": 0.0,
+    "node_3": 0.5618,
+    "node_4": 0.9051,
+    "pooled_accuracy": 0.9328,
+    "pooled_f1": 0.9596
+  },
+  "centralized": {
+    "node_0": 1.0,
+    "node_1": 1.0,
+    "node_2": 1.0,
+    "node_3": 0.588,
+    "node_4": 0.926,
+    "pooled_accuracy": 0.9554,
+    "pooled_f1": 0.9734
+  },
+  "local_only": {
+    "own_site_accuracy": {
+      "node_0": 1.0,
+      "node_1": 1.0,
+      "node_2": 1.0,
+      "node_3": 1.0,
+      "node_4": 1.0
+    },
+    "mean_pooled_accuracy": 0.4275,
+    "worst_pooled_accuracy": 0.1834
+  },
+  "config": {
+    "rounds": 200,
+    "local_epochs": 1,
+    "lr": 0.05,
+    "mu": 0.1,
+    "local_steps": 20,
+    "seed": 0
+  }
+}
