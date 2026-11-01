@@ -1,0 +1,21 @@
+# Model weights: only the deployable models in models/ are tracked
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.h5
+!models/*.pt
+
+# Generated
+splits/
+logs/
+runs/detect/fire_detection_v2*/
+results/vision_*_scores.csv
+results/*.log
+
+# Environments and caches
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+.DS_Store
