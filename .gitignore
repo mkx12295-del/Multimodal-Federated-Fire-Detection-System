@@ -10,6 +10,7 @@ test/
 *.onnx
 *.tflite
 *.h5
+*.gguf
 
 # Generated
 splits/
@@ -17,6 +18,7 @@ logs/
 runs/
 results/vision_*_scores.csv
 results/*.log
+results/fl_network/
 
 # Environments and caches
 venv/

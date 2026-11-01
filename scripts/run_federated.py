@@ -21,8 +21,8 @@ from sklearn.metrics import accuracy_score, f1_score
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from federated.fedavg import (Client, local_stats, merge_stats, run_centralized,  # noqa: E402
-                              run_federated, run_local_only)
+from federated.fedavg import (Client, gaussian_dp_epsilon, local_stats,  # noqa: E402
+                              merge_stats, run_centralized, run_federated, run_local_only)
 from federated.model import predict_proba  # noqa: E402
 from firenode.features import chronological_split, load_iot_csv, xy  # noqa: E402
 
@@ -48,6 +48,11 @@ def main():
     ap.add_argument("--mu", type=float, default=0.1, help="FedProx proximal weight")
     ap.add_argument("--local-steps", type=int, default=20,
                     help="cap on SGD steps per node per round")
+    ap.add_argument("--dp-clip", type=float, default=1.0, help="DP update norm bound")
+    ap.add_argument("--dp-noise", type=float, nargs="*", default=[0.0, 0.1, 0.5, 1.0, 2.0],
+                    help="DP noise multipliers to sweep")
+    ap.add_argument("--dp-delta", type=float, default=1e-3)
+    ap.add_argument("--dp-seeds", type=int, default=3)
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
@@ -94,6 +99,25 @@ def main():
         "worst_pooled_accuracy": round(float(min(e["pooled_accuracy"]
                                                  for e in local_eval.values())), 4),
     }
+    # Client-level differential privacy: utility versus privacy budget.
+    # Noise makes single runs jumpy, so average over several seeds.
+    dp = []
+    for sigma in args.dp_noise:
+        evals = []
+        for s in range(args.dp_seeds):
+            p, _ = run_federated(clients, args.rounds, args.local_epochs, args.lr,
+                                 seed=args.seed + s, local_steps=args.local_steps,
+                                 dp_clip=args.dp_clip, dp_noise=sigma)
+            evals.append(evaluate(p, tests))
+        acc = [e["pooled_accuracy"] for e in evals]
+        dp.append({"noise_multiplier": sigma, "clip": args.dp_clip,
+                   "epsilon": round(gaussian_dp_epsilon(sigma, args.rounds, args.dp_delta), 2),
+                   "delta": args.dp_delta, "seeds": args.dp_seeds,
+                   "pooled_accuracy_mean": round(float(np.mean(acc)), 4),
+                   "pooled_accuracy_std": round(float(np.std(acc)), 4),
+                   "per_node_accuracy_mean": {n: round(float(np.mean([e[n] for e in evals])), 4)
+                                              for n in tests}})
+    results["dp_fedavg"] = dp
     results["config"] = vars(args)
 
     out_dir = ROOT / "results"
@@ -117,6 +141,20 @@ def main():
     ax.legend()
     fig.tight_layout()
     fig.savefig(out_dir / "federated_convergence.png", dpi=120)
+
+    fig, ax = plt.subplots(figsize=(6, 3.5))
+    sig = [r["noise_multiplier"] for r in dp]
+    ax.errorbar(sig, [r["pooled_accuracy_mean"] for r in dp],
+                yerr=[r["pooled_accuracy_std"] for r in dp], marker="o", capsize=3)
+    for r in dp:
+        if np.isfinite(r["epsilon"]):
+            ax.annotate(f"eps={r['epsilon']:.0f}", (r["noise_multiplier"], r["pooled_accuracy_mean"]),
+                        textcoords="offset points", xytext=(4, 6), fontsize=8)
+    ax.set_xlabel("Noise multiplier (clip = %.1f)" % args.dp_clip)
+    ax.set_ylabel("Test accuracy (all nodes)")
+    ax.set_title(f"DP-FedAvg privacy/utility, {args.dp_seeds} seeds, delta={args.dp_delta}")
+    fig.tight_layout()
+    fig.savefig(out_dir / "dp_tradeoff.png", dpi=120)
 
     print(json.dumps({k: v for k, v in results.items() if k != "clients"}, indent=2))
 

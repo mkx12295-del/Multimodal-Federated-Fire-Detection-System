@@ -64,12 +64,104 @@
     "mean_pooled_accuracy": 0.4275,
     "worst_pooled_accuracy": 0.1834
   },
+  "dp_fedavg": [
+    {
+      "noise_multiplier": 0.0,
+      "clip": 1.0,
+      "epsilon": Infinity,
+      "delta": 0.001,
+      "seeds": 3,
+      "pooled_accuracy_mean": 0.9815,
+      "pooled_accuracy_std": 0.0153,
+      "per_node_accuracy_mean": {
+        "node_0": 1.0,
+        "node_1": 1.0,
+        "node_2": 1.0,
+        "node_3": 0.95,
+        "node_4": 0.8475
+      }
+    },
+    {
+      "noise_multiplier": 0.1,
+      "clip": 1.0,
+      "epsilon": 10676.95,
+      "delta": 0.001,
+      "seeds": 3,
+      "pooled_accuracy_mean": 0.9715,
+      "pooled_accuracy_std": 0.0311,
+      "per_node_accuracy_mean": {
+        "node_0": 0.9993,
+        "node_1": 1.0,
+        "node_2": 0.7522,
+        "node_3": 0.8493,
+        "node_4": 0.8923
+      }
+    },
+    {
+      "noise_multiplier": 0.5,
+      "clip": 1.0,
+      "epsilon": 505.68,
+      "delta": 0.001,
+      "seeds": 3,
+      "pooled_accuracy_mean": 0.8446,
+      "pooled_accuracy_std": 0.1097,
+      "per_node_accuracy_mean": {
+        "node_0": 0.7556,
+        "node_1": 1.0,
+        "node_2": 0.3333,
+        "node_3": 0.8226,
+        "node_4": 0.6806
+      }
+    },
+    {
+      "noise_multiplier": 1.0,
+      "clip": 1.0,
+      "epsilon": 152.68,
+      "delta": 0.001,
+      "seeds": 3,
+      "pooled_accuracy_mean": 0.7009,
+      "pooled_accuracy_std": 0.2625,
+      "per_node_accuracy_mean": {
+        "node_0": 0.6534,
+        "node_1": 0.7915,
+        "node_2": 0.5333,
+        "node_3": 0.6583,
+        "node_4": 0.5894
+      }
+    },
+    {
+      "noise_multiplier": 2.0,
+      "clip": 1.0,
+      "epsilon": 51.3,
+      "delta": 0.001,
+      "seeds": 3,
+      "pooled_accuracy_mean": 0.657,
+      "pooled_accuracy_std": 0.3337,
+      "per_node_accuracy_mean": {
+        "node_0": 0.6487,
+        "node_1": 0.6667,
+        "node_2": 0.0,
+        "node_3": 0.8287,
+        "node_4": 0.6106
+      }
+    }
+  ],
   "config": {
     "rounds": 200,
     "local_epochs": 1,
     "lr": 0.05,
     "mu": 0.1,
     "local_steps": 20,
+    "dp_clip": 1.0,
+    "dp_noise": [
+      0.0,
+      0.1,
+      0.5,
+      1.0,
+      2.0
+    ],
+    "dp_delta": 0.001,
+    "dp_seeds": 3,
     "seed": 0
   }
 }

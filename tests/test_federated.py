@@ -3,7 +3,8 @@ import threading
 import numpy as np
 
 from federated.client import FedClient
-from federated.fedavg import Client, fedavg, local_stats, merge_stats, run_federated
+from federated.fedavg import (Client, dp_fedavg, fedavg, gaussian_dp_epsilon, local_stats,
+                              merge_stats, run_federated)
 from federated.model import init_params, log_loss, predict_proba, train_local
 from federated.server import FedState, serve
 
@@ -76,3 +77,26 @@ def test_http_round_trip_between_server_and_nodes():
     assert state.done and state.round == 4
     assert set(results) == {"n0", "n1"}
     np.testing.assert_allclose(results["n0"]["W1"], results["n1"]["W1"])
+
+
+def test_dp_fedavg_clips_each_update():
+    g = {"w": np.zeros(3)}
+    big = {"w": np.array([30.0, 40.0, 0.0])}   # norm 50
+    small = {"w": np.array([0.3, 0.4, 0.0])}   # norm 0.5
+    out = dp_fedavg(g, [big, small], clip=1.0, noise_multiplier=0.0,
+                    rng=np.random.default_rng(0))
+    np.testing.assert_allclose(out["w"], [(0.6 + 0.3) / 2, (0.8 + 0.4) / 2, 0.0])
+
+
+def test_dp_noise_has_expected_scale():
+    g = {"w": np.zeros(20000)}
+    out = dp_fedavg(g, [g, g, g, g], clip=2.0, noise_multiplier=1.0,
+                    rng=np.random.default_rng(0))
+    assert abs(out["w"].std() - 2.0 / 4) < 0.01
+
+
+def test_epsilon_shrinks_with_more_noise_and_fewer_rounds():
+    e = gaussian_dp_epsilon
+    assert e(0.0, 10, 1e-5) == float("inf")
+    assert e(2.0, 10, 1e-5) < e(1.0, 10, 1e-5)
+    assert e(1.0, 10, 1e-5) < e(1.0, 100, 1e-5)

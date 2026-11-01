@@ -15,13 +15,19 @@ import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .fedavg import fedavg, merge_stats
+import numpy as np
+
+from .fedavg import dp_fedavg, fedavg, merge_stats
 from .model import from_lists, init_params, to_lists
 
 
 class FedState:
-    def __init__(self, num_clients, rounds, n_features, hidden=16, seed=0):
+    def __init__(self, num_clients, rounds, n_features, hidden=16, seed=0,
+                 clip=None, noise=0.0):
         self.num_clients, self.rounds = num_clients, rounds
+        # clip set: equal-weight clipped aggregation (DP-FedAvg when noise > 0).
+        self.clip, self.noise = clip, noise
+        self.rng = np.random.default_rng(seed)
         self.params = init_params(n_features, hidden, seed)
         self.round = 1
         self.stats = {}
@@ -46,7 +52,12 @@ class FedState:
                 return False
             self.pending[client] = (n, from_lists(params))
             if len(self.pending) == self.num_clients:
-                self.params = fedavg(list(self.pending.values()))
+                updates = list(self.pending.values())
+                if self.clip:
+                    self.params = dp_fedavg(self.params, [p for _, p in updates], self.clip,
+                                            self.noise, self.rng)
+                else:
+                    self.params = fedavg(updates)
                 self.pending = {}
                 self.round += 1
             return True
@@ -103,10 +114,13 @@ def main():
     p.add_argument("--rounds", type=int, default=20)
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8080)
+    p.add_argument("--clip", type=float, help="clip node updates to this L2 norm and "
+                   "average them with equal weight")
+    p.add_argument("--noise", type=float, default=0.0, help="DP noise multiplier (needs --clip)")
     args = p.parse_args()
 
     from firenode.features import FEATURES
-    state = FedState(args.clients, args.rounds, len(FEATURES))
+    state = FedState(args.clients, args.rounds, len(FEATURES), clip=args.clip, noise=args.noise)
     server = serve(state, args.host, args.port)
     print(f"Aggregator on {args.host}:{args.port}, waiting for {args.clients} nodes "
           f"x {args.rounds} rounds")
