@@ -12,10 +12,29 @@ Every number below is produced by a script in this repo, on held-out data.
 | Sensor pathway | XGBoost on temperature, humidity, TVOC, pressure (`models/sensor_xgb.json`) |
 | Vision pathway | YOLO11n fire/smoke detector, 416 px (`scripts/train_vision.py`) |
 | Fusion | Weighted late fusion, EMA smoothing, NORMAL→WARNING→ALARM state machine with hysteresis (`firenode/fusion.py`) |
-| Federated learning | NumPy MLP, FedAvg / FedProx / clipped equal-weight aggregation / DP-FedAvg; HTTP aggregator and node client (`federated/`) |
-| Local LLM reasoning | Qwen2.5-0.5B-Instruct (GGUF, Q4_K_M) explains WARNING/ALARM events; may only escalate, never cancel (`firenode/reasoning.py`) |
+| Federated learning (sensor) | NumPy MLP, FedAvg / FedProx / clipped equal-weight aggregation / DP-FedAvg; HTTP aggregator and node client (`federated/`); nodes run the federated model (`sensor_type: fl_mlp`) |
+| Federated learning (vision) | YOLO11n trained with FedAvg across 5 non-IID camera nodes (`scripts/federated_vision.py`) |
+| Local LLM reasoning | Qwen2.5 Instruct (GGUF, Q4_K_M) explains WARNING/ALARM events; escalation off by default after failing validation (`firenode/reasoning.py`) |
+| Alerts | JSON webhook and Telegram on state changes, sent off the alarm path (`firenode/alerts.py`) |
 | Dashboard | Live status page served by the node (`--dashboard PORT`) |
+| Multi-node demo | `docker compose up`: aggregator + 5 nodes + alert sink |
 | Hardware | Buzzer GPIO27 (pin 13), relay GPIO17 (pin 11), BME680 on I2C |
+
+```mermaid
+flowchart LR
+  subgraph Node["Fire node (Raspberry Pi 5)"]
+    BME[BME680<br/>temp, humidity, gas] --> SM[Sensor model<br/>XGBoost or federated MLP]
+    CAM[Pi Camera] --> YOLO[YOLO11n<br/>fire / smoke]
+    SM --> F[Fusion engine<br/>EMA + hysteresis]
+    YOLO --> F
+    F -->|state| ACT[Buzzer + relay]
+    F -->|WARNING / ALARM| LLM[Local LLM<br/>explanation]
+    F --> AL[Webhook / Telegram]
+    F --> DASH[Dashboard]
+  end
+  SM <-->|weights only| AGG[(FL aggregator<br/>FedAvg / clipped / DP)]
+  N2[Other nodes] <-->|weights only| AGG
+```
 
 ## Results
 
@@ -86,22 +105,80 @@ lot of accuracy. More nodes per round would be needed for strong guarantees.
 ![FL convergence](results/federated_convergence.png)
 ![DP trade-off](results/dp_tradeoff.png)
 
-### Local LLM reasoning: limitations seen so far
+### Federated vision (YOLO11n, 5 non-IID camera nodes)
 
-The 0.5B model runs locally (12 s per call on desktop CPU through
-transformers). In a replay test it labeled a clean-air window "fire" with high
-confidence and invented a TVOC reading, so it is advisory only. The
-escalate-only policy keeps it from cancelling alarms. A rule-based fallback is
-used when no model is available. `scripts/eval_reasoning.py` measures verdict
-accuracy and escalation impact; its results are not yet reported here.
+Training images split across 5 nodes with a Dirichlet(0.5) split by dominant
+class: one node has almost only fire, one has no fire at all. Each round every
+node trains one local epoch from the global weights; the server averages them.
+
+| Model | Test mAP50 | mAP50-95 |
+|---|---|---|
+| FedAvg, 20 rounds × 1 local epoch | 0.296 | 0.129 |
+| Centralized, same optimizer and budget (20 epochs) | 0.392 | 0.190 |
+| Centralized, 50 epochs (deployed model) | 0.427 | 0.208 |
+
+FedAvg reaches about 75% of centralized mAP without any node sharing images;
+the gap is the usual cost of strongly non-IID data.
+
+![Federated vision](results/federated_vision.png)
+
+### Edge deployment (vision model, desktop CPU pinned to 4 cores)
+
+`scripts/export_edge.py` exports the deployed model and measures each format
+on the held-out test split. Latency is end-to-end `predict()` per image at
+416 px on an Intel i7-13650HX limited to 4 cores (a Pi 5 has 4); Raspberry Pi
+numbers still need to be measured by running the same script on the device.
+
+| Format | Size | Median latency | p95 | Test mAP50 |
+|---|---|---|---|---|
+| PyTorch fp32 | 5.2 MB | 44 ms | 46 ms | 0.427 |
+| ONNX fp32 | 10.1 MB | 64 ms | 131 ms | 0.416 |
+| NCNN fp32 | 10.0 MB | 42 ms | 47 ms | 0.416 |
+| NCNN fp16 | 5.0 MB | 43 ms | 49 ms | 0.416 |
+| **OpenVINO INT8** | **3.2 MB** | **25 ms** | **39 ms** | **0.415** |
+
+INT8 quantization makes the model 1.8× faster and 39% smaller than PyTorch
+for a 0.001 mAP50 drop against the fp32 exports. `config/pi.yaml` selects the
+NCNN export, the format Ultralytics recommends for Raspberry Pi CPUs.
+
+### Fusion over time
+
+One held-out episode per situation; the black line is the v2 smoothed score,
+the background is the v2 state, purple ticks are frames where the v1 rule alarmed.
+
+![Fusion timeline](results/fusion_timeline.png)
+
+### Local LLM reasoning: evaluated, kept advisory
+
+On every WARNING the node summarizes the last 30 readings for a local LLM and
+logs its verdict and explanation. Four configurations were compared on
+validation episodes (20 per type); the best one was then run once on test.
+
+| Validation (verdict accuracy) | Fire, both | Camera blind | No gas yet | **No fire** | Median latency |
+|---|---|---|---|---|---|
+| Qwen2.5-0.5B, zero-shot | 0.95 | 1.00 | 0.90 | **0.00** | 2.2 s |
+| Qwen2.5-0.5B, few-shot | 0.00 | 0.00 | 0.00 | **1.00** | 3.4 s |
+| Qwen2.5-1.5B, zero-shot | 1.00 | 1.00 | 1.00 | **0.00** | 8.3 s |
+| Qwen2.5-1.5B, few-shot | 1.00 | 1.00 | 0.95 | **0.00** | 5.0 s |
+| Rule-based fallback | 1.00 | 0.90 | 1.00 | 0.25 | <1 ms |
+
+(Latency on an RTX 5060 laptop GPU through transformers.) None of these small
+models separates fire from no-fire: each gives almost the same answer whatever
+the readings say. On test, letting Qwen2.5-1.5B escalate WARNING to ALARM
+raised the false-alarm rate on no-fire episodes from 0% to 87%. Escalation is
+therefore **off by default**; the LLM only writes explanations into the
+incident log and dashboard, and the fusion engine alone decides alarms.
+Results: `results/reasoning_eval_val.json`, `results/reasoning_eval_test.json`.
 
 ## Setup
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv && .venv\Scripts\activate          # Linux/macOS: source .venv/bin/activate
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128   # GPU; omit for CPU
+pip install -r requirements.txt -r requirements-edge.txt
 python scripts/download_dataset.py      # needs ROBOFLOW_API_KEY (dataset: CC BY 4.0)
 python train.py                         # splits, sensor, vision, FL, fusion stages
-pytest -q                               # 30 tests, no hardware needed
+pytest -q                               # 36 tests, no hardware needed
 ```
 
 Run the node without hardware (replays recorded sensor data):
@@ -122,6 +199,29 @@ Networked federated training (one aggregator, one process per node):
 python scripts/fl_network_demo.py --clip 1.0
 ```
 
+### Multi-node demo with Docker
+
+```bash
+docker compose up --build
+```
+
+Starts the aggregator, five nodes and an alert sink. Each node trains the
+shared sensor model over HTTP using only its own recording session, then runs
+the full node loop on its held-out readings with that federated model.
+Dashboards: http://localhost:8100 to 8104. Alerts received: http://localhost:9000/events.
+
+In a test run, nodes 0–2 (held-out readings contain fire) went to ALARM,
+nodes 3–4 (no fire) stayed NORMAL, and the sink received 6 webhook alerts
+(WARNING then ALARM from each fire node).
+
+![Dashboard](results/dashboard.png)
+
+### Alerts
+
+Set `FIRENODE_WEBHOOK_URL` for JSON webhooks, or `TELEGRAM_BOT_TOKEN` and
+`TELEGRAM_CHAT_ID` for Telegram. Alerts go out on a background thread with
+timeouts, so a slow network never delays the buzzer or relay.
+
 Deploy to a Raspberry Pi 5 (SSH key auth, installs a systemd service):
 
 ```bash
@@ -137,7 +237,7 @@ scripts/      dataset, training, FL experiments, benchmarks
 config/       default.yaml (+ tuned_fusion.yaml from the benchmark)
 results/      metrics JSON and plots produced by the scripts
 tests/        pytest suite (runs in CI)
-deploy/       systemd unit
+deploy/       systemd unit, Docker node entrypoint, webhook sink
 ```
 
 ## Limitations
@@ -147,6 +247,8 @@ deploy/       systemd unit
   evaluated on replay episodes assembled from held-out sensor windows and test images.
 - Federated "nodes" are recording sessions of one public dataset, not separate deployments.
 - The BME680 gives gas resistance, not TVOC; the conversion is approximate.
+- Small local LLMs (0.5B and 1.5B) did not pass validation as decision makers; they only explain.
+- Edge latency was measured on a desktop CPU limited to 4 cores, not on a Raspberry Pi.
 
 ## Data
 
