@@ -222,13 +222,18 @@ class TransformersReasoner(_ChatReasoner):
     def __init__(self, model_path):
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
+        import torch
+
         p = Path(model_path)
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tok = AutoTokenizer.from_pretrained(str(p.parent), gguf_file=p.name)
         self.model = AutoModelForCausalLM.from_pretrained(str(p.parent), gguf_file=p.name)
+        self.model.to(self.device)
+        self.name = f"transformers-{self.device}"
 
     def _chat(self, messages):
         x = self.tok.apply_chat_template(messages, add_generation_prompt=True,
-                                         return_tensors="pt", return_dict=True)
+                                         return_tensors="pt", return_dict=True).to(self.device)
         out = self.model.generate(**x, max_new_tokens=self.max_tokens, do_sample=False)
         return self.tok.decode(out[0][x["input_ids"].shape[1]:], skip_special_tokens=True)
 
