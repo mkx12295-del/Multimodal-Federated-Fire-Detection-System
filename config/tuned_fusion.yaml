@@ -1,0 +1,13 @@
+# Written by scripts/benchmark_fusion.py --tune (validation split)
+fusion:
+  alarm_frames: 3
+  alarm_on: 0.4
+  clear_below: 0.25
+  clear_frames: 5
+  confirm_frames: 2
+  ema_alpha: 0.4
+  sensor_threshold: 0.5
+  sensor_weight: 0.4
+  vision_threshold: 0.35
+  vision_weight: 0.6
+  warning_on: 0.3

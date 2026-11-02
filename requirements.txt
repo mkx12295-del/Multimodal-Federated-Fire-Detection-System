@@ -1,0 +1,17 @@
+# Desktop / training environment (Python 3.10+)
+numpy>=1.24
+pandas>=2.0
+scikit-learn>=1.3
+xgboost>=2.0
+ultralytics>=8.3
+opencv-python>=4.8
+matplotlib>=3.7
+pyyaml>=6.0
+paramiko>=3.0
+pytest>=7.0
+
+# Local LLM reasoning on desktop: loads the same GGUF file the Pi uses.
+# (On Linux/macOS, `pip install llama-cpp-python` is the lighter alternative.)
+transformers>=4.45
+accelerate>=0.30
+gguf>=0.10

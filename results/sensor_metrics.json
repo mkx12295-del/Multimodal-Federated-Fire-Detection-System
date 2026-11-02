@@ -1,0 +1,61 @@
+{
+  "features": [
+    "Temperature",
+    "Humidity",
+    "TVOC",
+    "Pressure"
+  ],
+  "rows": {
+    "train": 43844,
+    "val": 9393,
+    "test": 9393
+  },
+  "best_iteration": 235,
+  "random_row_split_v1": {
+    "accuracy": 0.9948107935494173,
+    "precision": 0.9939959973315544,
+    "recall": 0.9987710870293822,
+    "f1": 0.9963778211200892,
+    "roc_auc": 0.9997659518450492
+  },
+  "chronological_split_v2": {
+    "accuracy": 0.997657830299159,
+    "precision": 0.9971402573768361,
+    "recall": 1.0,
+    "f1": 0.9985680812288467,
+    "roc_auc": 1.0
+  },
+  "leave_one_session_out": {
+    "session_0": {
+      "rows": 24994,
+      "fire_rate": 0.8728494838761303,
+      "accuracy": 0.5776586380731376
+    },
+    "session_1": {
+      "rows": 24994,
+      "fire_rate": 0.8728494838761303,
+      "accuracy": 0.8796111066655997
+    },
+    "session_2": {
+      "rows": 1154,
+      "fire_rate": 0.9714038128249567,
+      "accuracy": 0.02859618717504333
+    },
+    "session_3": {
+      "rows": 5744,
+      "fire_rate": 0.00034818941504178273,
+      "accuracy": 0.6542479108635098
+    },
+    "session_4": {
+      "rows": 5744,
+      "fire_rate": 0.00034818941504178273,
+      "accuracy": 0.4216573816155989
+    }
+  },
+  "feature_importance": {
+    "Temperature": 0.12664002180099487,
+    "Humidity": 0.04316665232181549,
+    "TVOC": 0.6892983913421631,
+    "Pressure": 0.14089488983154297
+  }
+}

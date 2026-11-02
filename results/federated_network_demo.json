@@ -1,0 +1,14 @@
+{
+  "nodes": 5,
+  "rounds": 200,
+  "wall_clock_s": 21.8,
+  "all_nodes_hold_identical_model": true,
+  "per_node_test_accuracy": {
+    "node_0": 1.0,
+    "node_1": 1.0,
+    "node_2": 0.0,
+    "node_3": 0.5662,
+    "node_4": 0.9225
+  },
+  "pooled_test_accuracy": 0.9348
+}

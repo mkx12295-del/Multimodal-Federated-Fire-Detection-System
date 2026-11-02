@@ -1,0 +1,45 @@
+name: firenode
+
+# Five federated fire nodes, an aggregator and an alert sink on one machine.
+#   docker compose up --build
+# Dashboards: http://localhost:8100 ... 8104   Alerts: http://localhost:9000/events
+
+x-node: &node
+  build: .
+  command: ["sh", "deploy/node_entrypoint.sh"]
+  depends_on: [aggregator, alerts]
+  environment: &node-env
+    AGGREGATOR: http://aggregator:8080
+    FIRENODE_WEBHOOK_URL: http://alerts:9000/
+
+services:
+  aggregator:
+    build: .
+    command: ["python", "-m", "federated.server", "--clients", "5", "--rounds", "200",
+              "--clip", "1.0", "--host", "0.0.0.0", "--port", "8080"]
+
+  alerts:
+    build: .
+    command: ["python", "deploy/webhook_sink.py"]
+    ports: ["9000:9000"]
+
+  node0:
+    <<: *node
+    environment: {<<: *node-env, NODE_ID: node0, SESSION: "0"}
+    ports: ["8100:8000"]
+  node1:
+    <<: *node
+    environment: {<<: *node-env, NODE_ID: node1, SESSION: "1"}
+    ports: ["8101:8000"]
+  node2:
+    <<: *node
+    environment: {<<: *node-env, NODE_ID: node2, SESSION: "2"}
+    ports: ["8102:8000"]
+  node3:
+    <<: *node
+    environment: {<<: *node-env, NODE_ID: node3, SESSION: "3"}
+    ports: ["8103:8000"]
+  node4:
+    <<: *node
+    environment: {<<: *node-env, NODE_ID: node4, SESSION: "4"}
+    ports: ["8104:8000"]

@@ -1,0 +1,8 @@
+# Edge export and benchmarking (scripts/export_edge.py)
+onnx
+onnxruntime
+onnxslim
+ncnn
+pnnx
+openvino
+nncf

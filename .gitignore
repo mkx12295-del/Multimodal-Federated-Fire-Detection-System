@@ -1,0 +1,32 @@
+# Dataset (download with scripts/download_dataset.py)
+train/
+valid/
+test/
+*.cache
+
+# Model weights (train with train.py, or download from the GitHub release)
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.h5
+*.gguf
+
+# Generated
+splits/
+logs/
+runs/
+results/vision_*_scores.csv
+results/*.log
+results/fl_network/
+
+# Environments and caches
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+.DS_Store
+
+# Generated exports and download caches
+models/edge/
+models/.cache/

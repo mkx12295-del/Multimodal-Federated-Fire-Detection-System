@@ -1,0 +1,55 @@
+{
+  "split": "test",
+  "episodes_per_type": 15,
+  "escalate_confidence": 0.8,
+  "fusion_only_alarm_rate": {
+    "fire_both": 1.0,
+    "fire_no_camera": 1.0,
+    "fire_no_gas": 0.933,
+    "no_fire": 0.0
+  },
+  "rules": {
+    "verdict_accuracy": {
+      "fire_both": 1.0,
+      "fire_no_camera": 0.6,
+      "fire_no_gas": 1.0,
+      "no_fire": 1.0,
+      "overall": 0.9
+    },
+    "alarm_rate_with_reasoner": {
+      "fire_both": 1.0,
+      "fire_no_camera": 1.0,
+      "fire_no_gas": 0.933,
+      "no_fire": 0.0
+    },
+    "parse_rate": 1.0,
+    "latency_s": {
+      "median": 0.0,
+      "p95": 0.0
+    }
+  },
+  "qwen2.5-1.5b_zero_shot": {
+    "backend": "transformers-cuda",
+    "model": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "prompt": "zero_shot",
+    "load_s": 47.3,
+    "verdict_accuracy": {
+      "fire_both": 1.0,
+      "fire_no_camera": 1.0,
+      "fire_no_gas": 1.0,
+      "no_fire": 0.0,
+      "overall": 0.75
+    },
+    "alarm_rate_with_reasoner": {
+      "fire_both": 1.0,
+      "fire_no_camera": 1.0,
+      "fire_no_gas": 1.0,
+      "no_fire": 0.867
+    },
+    "parse_rate": 1.0,
+    "latency_s": {
+      "median": 3.784,
+      "p95": 5.559
+    }
+  }
+}

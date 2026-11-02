@@ -1,0 +1,7 @@
+# Raspberry Pi 5 override: python inference.py --config config/pi.yaml
+# NCNN is the export format Ultralytics recommends for Raspberry Pi CPUs.
+# Create it with: python scripts/export_edge.py (writes models/edge/)
+models:
+  vision: models/edge/ncnn_fp16/vision_yolo11n_ncnn_model
+reasoning:
+  backend: llama_cpp

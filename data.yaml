@@ -1,6 +1,8 @@
-train: train/images
-val: train/images
-test: train/images
+# Generated splits (see scripts/make_splits.py). Validation and test images are
+# held out from training.
+train: splits/train.txt
+val: splits/val.txt
+test: splits/test.txt
 
 nc: 3
 names: ['fire', 'other', 'smoke']

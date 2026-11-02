@@ -1,0 +1,157 @@
+{
+  "clients": {
+    "node_0": {
+      "images": 2196,
+      "fire": 2180,
+      "other": 14,
+      "smoke": 2
+    },
+    "node_1": {
+      "images": 1645,
+      "fire": 1265,
+      "other": 82,
+      "smoke": 298
+    },
+    "node_2": {
+      "images": 1763,
+      "fire": 1414,
+      "other": 140,
+      "smoke": 209
+    },
+    "node_3": {
+      "images": 778,
+      "other": 587,
+      "smoke": 191
+    },
+    "node_4": {
+      "images": 771,
+      "fire": 375,
+      "other": 388,
+      "smoke": 8
+    }
+  },
+  "rounds": 20,
+  "alpha": 0.5,
+  "local_epochs_per_round": 1,
+  "history": [
+    {
+      "round": 1,
+      "lr": 0.01,
+      "val_mAP50": 0.1024
+    },
+    {
+      "round": 2,
+      "lr": 0.00994,
+      "val_mAP50": 0.205
+    },
+    {
+      "round": 3,
+      "lr": 0.00977,
+      "val_mAP50": 0.2531
+    },
+    {
+      "round": 4,
+      "lr": 0.00948,
+      "val_mAP50": 0.2756
+    },
+    {
+      "round": 5,
+      "lr": 0.00909,
+      "val_mAP50": 0.3152
+    },
+    {
+      "round": 6,
+      "lr": 0.00861,
+      "val_mAP50": 0.3099
+    },
+    {
+      "round": 7,
+      "lr": 0.00804,
+      "val_mAP50": 0.2986
+    },
+    {
+      "round": 8,
+      "lr": 0.00741,
+      "val_mAP50": 0.3205
+    },
+    {
+      "round": 9,
+      "lr": 0.00672,
+      "val_mAP50": 0.2915
+    },
+    {
+      "round": 10,
+      "lr": 0.00599,
+      "val_mAP50": 0.322
+    },
+    {
+      "round": 11,
+      "lr": 0.00525,
+      "val_mAP50": 0.3181
+    },
+    {
+      "round": 12,
+      "lr": 0.00451,
+      "val_mAP50": 0.3156
+    },
+    {
+      "round": 13,
+      "lr": 0.00378,
+      "val_mAP50": 0.3099
+    },
+    {
+      "round": 14,
+      "lr": 0.00309,
+      "val_mAP50": 0.3028
+    },
+    {
+      "round": 15,
+      "lr": 0.00246,
+      "val_mAP50": 0.304
+    },
+    {
+      "round": 16,
+      "lr": 0.00189,
+      "val_mAP50": 0.3057
+    },
+    {
+      "round": 17,
+      "lr": 0.00141,
+      "val_mAP50": 0.3146
+    },
+    {
+      "round": 18,
+      "lr": 0.00102,
+      "val_mAP50": 0.3295
+    },
+    {
+      "round": 19,
+      "lr": 0.00073,
+      "val_mAP50": 0.3253
+    },
+    {
+      "round": 20,
+      "lr": 0.00056,
+      "val_mAP50": 0.3218
+    }
+  ],
+  "fedavg_test": {
+    "mAP50": 0.2955,
+    "mAP50_95": 0.1289,
+    "per_class_mAP50": {
+      "fire": 0.5091,
+      "other": 0.0897,
+      "smoke": 0.2878
+    }
+  },
+  "centralized_same_budget_test": {
+    "mAP50": 0.3924,
+    "mAP50_95": 0.1904,
+    "per_class_mAP50": {
+      "fire": 0.5842,
+      "other": 0.192,
+      "smoke": 0.4008
+    }
+  },
+  "centralized_50_epochs_test_mAP50": 0.427
+}

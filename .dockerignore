@@ -1,0 +1,10 @@
+*
+!requirements-node.txt
+!firenode/
+!federated/
+!config/
+!models/sensor_xgb.json
+!deploy/
+!inference.py
+!smoke_detection_iot.csv
+**/__pycache__

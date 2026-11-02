@@ -1,0 +1,54 @@
+{
+  "device": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel (Windows)",
+  "cpu_threads": 4,
+  "imgsz": 416,
+  "runs": 50,
+  "note": "end-to-end predict() time per image incl. pre/post-processing",
+  "results": [
+    {
+      "format": "pytorch_fp32",
+      "file": "vision_yolo11n.pt",
+      "size_mb": 5.22,
+      "latency_ms_median": 44.3,
+      "latency_ms_p95": 46.2,
+      "test_mAP50": 0.4271,
+      "test_mAP50_95": 0.2087
+    },
+    {
+      "format": "onnx_fp32",
+      "file": "vision_yolo11n.onnx",
+      "size_mb": 10.08,
+      "latency_ms_median": 64.2,
+      "latency_ms_p95": 130.7,
+      "test_mAP50": 0.4158,
+      "test_mAP50_95": 0.2001
+    },
+    {
+      "format": "ncnn_fp32",
+      "file": "vision_yolo11n_ncnn_model",
+      "size_mb": 9.97,
+      "latency_ms_median": 42.4,
+      "latency_ms_p95": 46.7,
+      "test_mAP50": 0.4158,
+      "test_mAP50_95": 0.2001
+    },
+    {
+      "format": "ncnn_fp16",
+      "file": "vision_yolo11n_ncnn_model",
+      "size_mb": 5.03,
+      "latency_ms_median": 43.2,
+      "latency_ms_p95": 48.9,
+      "test_mAP50": 0.4156,
+      "test_mAP50_95": 0.2002
+    },
+    {
+      "format": "openvino_int8",
+      "file": "vision_yolo11n_int8_openvino_model",
+      "size_mb": 3.21,
+      "latency_ms_median": 24.6,
+      "latency_ms_p95": 39.3,
+      "test_mAP50": 0.4153,
+      "test_mAP50_95": 0.2002
+    }
+  ]
+}

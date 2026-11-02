@@ -1,0 +1,102 @@
+{
+  "split": "val",
+  "episodes_per_type": 20,
+  "escalate_confidence": 0.8,
+  "fusion_only_alarm_rate": {
+    "fire_both": 1.0,
+    "fire_no_camera": 1.0,
+    "fire_no_gas": 0.95,
+    "no_fire": 0.0
+  },
+  "rules": {
+    "verdict_accuracy": {
+      "fire_both": 1.0,
+      "fire_no_camera": 0.9,
+      "fire_no_gas": 1.0,
+      "no_fire": 0.25,
+      "overall": 0.787
+    },
+    "alarm_rate_with_reasoner": {},
+    "parse_rate": 1.0,
+    "latency_s": {
+      "median": 0.0,
+      "p95": 0.0
+    }
+  },
+  "qwen2.5-0.5b_zero_shot": {
+    "backend": "transformers-cuda",
+    "model": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+    "prompt": "zero_shot",
+    "load_s": 35.3,
+    "verdict_accuracy": {
+      "fire_both": 0.95,
+      "fire_no_camera": 1.0,
+      "fire_no_gas": 0.9,
+      "no_fire": 0.0,
+      "overall": 0.713
+    },
+    "alarm_rate_with_reasoner": {},
+    "parse_rate": 0.963,
+    "latency_s": {
+      "median": 2.246,
+      "p95": 4.324
+    }
+  },
+  "qwen2.5-0.5b_few_shot": {
+    "backend": "transformers-cuda",
+    "model": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+    "prompt": "few_shot",
+    "load_s": 49.1,
+    "verdict_accuracy": {
+      "fire_both": 0.0,
+      "fire_no_camera": 0.0,
+      "fire_no_gas": 0.0,
+      "no_fire": 1.0,
+      "overall": 0.25
+    },
+    "alarm_rate_with_reasoner": {},
+    "parse_rate": 1.0,
+    "latency_s": {
+      "median": 3.375,
+      "p95": 5.773
+    }
+  },
+  "qwen2.5-1.5b_zero_shot": {
+    "backend": "transformers-cuda",
+    "model": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "prompt": "zero_shot",
+    "load_s": 67.4,
+    "verdict_accuracy": {
+      "fire_both": 1.0,
+      "fire_no_camera": 1.0,
+      "fire_no_gas": 1.0,
+      "no_fire": 0.0,
+      "overall": 0.75
+    },
+    "alarm_rate_with_reasoner": {},
+    "parse_rate": 1.0,
+    "latency_s": {
+      "median": 8.304,
+      "p95": 11.286
+    }
+  },
+  "qwen2.5-1.5b_few_shot": {
+    "backend": "transformers-cuda",
+    "model": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "prompt": "few_shot",
+    "load_s": 44.0,
+    "verdict_accuracy": {
+      "fire_both": 1.0,
+      "fire_no_camera": 1.0,
+      "fire_no_gas": 0.95,
+      "no_fire": 0.0,
+      "overall": 0.738
+    },
+    "alarm_rate_with_reasoner": {},
+    "parse_rate": 1.0,
+    "latency_s": {
+      "median": 4.998,
+      "p95": 5.833
+    }
+  }
+}

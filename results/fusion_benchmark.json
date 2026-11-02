@@ -1,0 +1,130 @@
+{
+  "split": "test",
+  "episode_len": 60,
+  "episodes_per_type": 200,
+  "fusion_config": {
+    "sensor_weight": 0.4,
+    "vision_weight": 0.6,
+    "sensor_threshold": 0.5,
+    "vision_threshold": 0.35,
+    "ema_alpha": 0.4,
+    "warning_on": 0.3,
+    "alarm_on": 0.4,
+    "clear_below": 0.25,
+    "alarm_frames": 3,
+    "confirm_frames": 2,
+    "clear_frames": 5
+  },
+  "vision_frames": {
+    "images": 893,
+    "hazard_images": 788,
+    "frame_recall@0.45": 0.758,
+    "frame_false_positive_rate@0.45": 0.048
+  },
+  "policies": {
+    "sensor_only": {
+      "fire_both": {
+        "alarm_rate": 1.0,
+        "median_latency_frames": 0.0,
+        "mean_toggles": 0.0,
+        "alarm_time_fraction": 1.0
+      },
+      "fire_no_camera": {
+        "alarm_rate": 1.0,
+        "median_latency_frames": 0.0,
+        "mean_toggles": 0.0,
+        "alarm_time_fraction": 1.0
+      },
+      "fire_no_gas": {
+        "alarm_rate": 0.025,
+        "median_latency_frames": 29.0,
+        "mean_toggles": 0.04,
+        "alarm_time_fraction": 0.009
+      },
+      "no_fire": {
+        "alarm_rate": 0.02,
+        "median_latency_frames": 45.5,
+        "mean_toggles": 0.03,
+        "alarm_time_fraction": 0.004
+      }
+    },
+    "vision_only": {
+      "fire_both": {
+        "alarm_rate": 1.0,
+        "median_latency_frames": 0.0,
+        "mean_toggles": 21.59,
+        "alarm_time_fraction": 0.752
+      },
+      "fire_no_camera": {
+        "alarm_rate": 0.96,
+        "median_latency_frames": 12.5,
+        "mean_toggles": 5.49,
+        "alarm_time_fraction": 0.049
+      },
+      "fire_no_gas": {
+        "alarm_rate": 1.0,
+        "median_latency_frames": 0.0,
+        "mean_toggles": 21.39,
+        "alarm_time_fraction": 0.76
+      },
+      "no_fire": {
+        "alarm_rate": 0.945,
+        "median_latency_frames": 11.0,
+        "mean_toggles": 5.33,
+        "alarm_time_fraction": 0.047
+      }
+    },
+    "v1_and_rule": {
+      "fire_both": {
+        "alarm_rate": 1.0,
+        "median_latency_frames": 0.0,
+        "mean_toggles": 21.59,
+        "alarm_time_fraction": 0.752
+      },
+      "fire_no_camera": {
+        "alarm_rate": 0.96,
+        "median_latency_frames": 12.5,
+        "mean_toggles": 5.49,
+        "alarm_time_fraction": 0.049
+      },
+      "fire_no_gas": {
+        "alarm_rate": 0.025,
+        "median_latency_frames": 29.0,
+        "mean_toggles": 0.27,
+        "alarm_time_fraction": 0.006
+      },
+      "no_fire": {
+        "alarm_rate": 0.01,
+        "median_latency_frames": 45.0,
+        "mean_toggles": 0.03,
+        "alarm_time_fraction": 0.0
+      }
+    },
+    "v2_fusion": {
+      "fire_both": {
+        "alarm_rate": 1.0,
+        "median_latency_frames": 1.0,
+        "mean_toggles": 1.0,
+        "alarm_time_fraction": 0.976
+      },
+      "fire_no_camera": {
+        "alarm_rate": 1.0,
+        "median_latency_frames": 8.0,
+        "mean_toggles": 1.0,
+        "alarm_time_fraction": 0.852
+      },
+      "fire_no_gas": {
+        "alarm_rate": 0.915,
+        "median_latency_frames": 11.0,
+        "mean_toggles": 0.93,
+        "alarm_time_fraction": 0.674
+      },
+      "no_fire": {
+        "alarm_rate": 0.005,
+        "median_latency_frames": 33.0,
+        "mean_toggles": 0.01,
+        "alarm_time_fraction": 0.002
+      }
+    }
+  }
+}

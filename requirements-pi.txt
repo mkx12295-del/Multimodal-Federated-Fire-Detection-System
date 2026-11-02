@@ -1,0 +1,10 @@
+# Raspberry Pi 5 runtime (gpiozero ships with Raspberry Pi OS)
+numpy
+pandas
+xgboost
+ultralytics
+opencv-python-headless
+pyyaml
+adafruit-circuitpython-bme680
+# Local LLM reasoning (builds llama.cpp from source on the Pi; takes a few minutes)
+llama-cpp-python
